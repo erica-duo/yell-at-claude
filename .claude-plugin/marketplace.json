@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "yell-at-claude",
+  "description": "Installs the yell-at-claude plugin — automatic pushback when Claude says it can't do something or can't find something",
+  "owner": {
+    "name": "Erica Schneider",
+    "email": "erica@ericaschneider.me"
+  },
+  "plugins": [
+    {
+      "name": "yell-at-claude",
+      "description": "When Claude ends a reply with \"I can't\" or \"I couldn't find it,\" this plugin yells at it for you — try another spelling, check another source, use a different tool — until it actually finishes the job.",
+      "category": "productivity",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/erica-duo/yell-at-claude.git",
+        "path": "plugins/yell-at-claude"
+      }
+    }
+  ]
+}
