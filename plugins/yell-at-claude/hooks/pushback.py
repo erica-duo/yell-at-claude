@@ -18,6 +18,10 @@ import tempfile
 
 MAX_PUSHBACKS = 2
 
+# Quoted or backticked spans — a message that merely QUOTES a give-up phrase
+# (e.g. explaining the hook itself) is not giving up. Stripped before scanning.
+QUOTED_SPAN = re.compile(r'"[^"\n]{0,200}"|“[^”\n]{0,200}”|`[^`\n]{0,200}`')
+
 CANT_FIND = re.compile(
     r"""
     \b(?:couldn't|could\ not|can't|cannot|unable\ to|wasn't\ able\ to|was\ not\ able\ to|didn't|did\ not)\ +
@@ -121,6 +125,8 @@ def main():
     message = last_assistant_text(transcript_path)
     if not message:
         return
+
+    message = QUOTED_SPAN.sub(" ", message)
 
     found_cant_find = bool(CANT_FIND.search(message))
     found_cant_do = bool(CANT_DO.search(message))
