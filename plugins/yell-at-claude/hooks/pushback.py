@@ -46,38 +46,38 @@ CANT_DO = re.compile(
 )
 
 PUSHBACK_FIND = (
-    "Don't stop there — \"couldn't find it\" is not an acceptable final answer. "
-    "Do ALL of the following before reporting back: "
-    "(1) Retry with alternate spellings and name variants — first name only, full name, "
-    "company name, abbreviations, the way it appears in one tool vs. another. "
-    "(2) Re-run the query with NO filters to confirm the data source is even responding. "
-    "(3) Check at least one other data source — the answer is rarely in only one place. "
-    "(4) Search memory files, project docs, and git history for prior context. "
-    "If you genuinely exhaust all of that, report exactly what you searched (sources and "
-    "queries), your best guess at where it lives, and the next step you recommend — then "
-    "take that next step yourself if you can."
+    "Pushback — \"not found\" isn't a final answer yet. Try all of these first:\n"
+    "\n"
+    "- Alternate spellings and name variants (first name, full name, company name, "
+    "abbreviations — different tools name things differently)\n"
+    "- The same query with NO filters, to confirm the data source is responding at all\n"
+    "- At least one other data source — the answer is rarely in only one place\n"
+    "- Memory files, project docs, and git history for prior context\n"
+    "\n"
+    "If all of that is truly exhausted: report what you searched (sources and queries), "
+    "your best guess at where it lives, and the next step — then take that step yourself."
 )
 
 PUSHBACK_DO = (
-    "Yes you can — don't give up that easily. You have full permissions here and more "
-    "tools than you think: file read/write, shell scripts, web search, and every "
-    "connected MCP server. Before saying you can't do something: "
-    "(1) Re-check your available tools, including MCP tools you haven't loaded yet. "
-    "(2) Try a completely different approach — write a small script, break the task into "
-    "steps, or get the same result through a different tool. "
-    "(3) Check memory and project docs for how this was done before. "
-    "If a tool errored, read the actual error and fix that specific thing instead of "
-    "abandoning the task. If it is genuinely impossible, explain precisely why, propose "
-    "the closest thing you CAN do, and then do it."
+    "Pushback — you have more tools than you think (files, shell, web, every MCP server). "
+    "Before saying it can't be done:\n"
+    "\n"
+    "- Re-check your available tools, including MCP tools you haven't loaded yet\n"
+    "- Try a different route — a small script, smaller steps, or a different tool\n"
+    "- Check memory and project docs for how this was done before\n"
+    "- If a tool errored, read the actual error and fix that one thing\n"
+    "\n"
+    "If it's genuinely impossible: explain exactly why, propose the closest thing you "
+    "CAN do, and then do it."
 )
 
 PUSHBACK_FINAL = (
-    "Still not good enough. Re-read your last answer like a skeptical client would: did "
-    "you actually try everything, or did you stop at the first dead end? Make one more "
-    "serious attempt using a tool or source you have NOT tried yet. Then give a final "
-    "answer that either (a) delivers the result, or (b) lists exactly what you tried, why "
-    "each attempt failed, and one concrete recommendation phrased so a non-technical "
-    "reader knows what to do next. Never end on a bare \"I can't.\""
+    "Pushback, final round — re-read your last answer like a skeptical client would. "
+    "Did you try everything, or stop at the first dead end?\n"
+    "\n"
+    "Make one more serious attempt with a tool or source you have NOT tried yet. "
+    "Then either deliver the result, or list what you tried, why each attempt failed, "
+    "and one concrete next step a non-technical reader can act on."
 )
 
 

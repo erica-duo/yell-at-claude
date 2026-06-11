@@ -1,6 +1,6 @@
 {
   "name": "yell-at-claude",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Automatic pushback when Claude gives up. Detects \"I can't\" and \"couldn't find it\" endings and sends Claude back to work — no prompting skills required.",
   "author": {
     "name": "Erica Schneider",
