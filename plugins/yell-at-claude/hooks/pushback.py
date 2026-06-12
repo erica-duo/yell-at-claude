@@ -17,6 +17,7 @@ Capped at 2 pushbacks per session. Fails open: if the judge call errors or
 times out, the stop is allowed. Stdlib only.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -236,13 +237,27 @@ def main():
         return
 
     counter_file = os.path.join(tempfile.gettempdir(), f"yell-at-claude-{session_id}")
+    count, last_hash = 0, ""
     try:
         with open(counter_file, "r", encoding="utf-8") as f:
-            count = int(f.read().strip() or 0)
+            raw_state = f.read().strip()
+        try:
+            state = json.loads(raw_state)
+            count = int(state.get("count", 0))
+            last_hash = state.get("last_hash", "")
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            count = int(raw_state or 0)  # pre-2.0.1 plain-int format
     except (OSError, ValueError):
-        count = 0
+        pass
 
     if count >= MAX_PUSHBACKS:
+        return
+
+    # Never push back on the same message twice. A Stop hook can re-read a
+    # transcript whose newest assistant message hasn't flushed yet, making the
+    # already-pushed message look current again.
+    msg_hash = hashlib.sha256(assistant_msg.encode("utf-8")).hexdigest()
+    if msg_hash == last_hash:
         return
 
     pushback = judge(user_msg, assistant_msg, second_round=count >= 1)
@@ -252,7 +267,7 @@ def main():
     # Only a delivered pushback burns budget — false suspicions are free.
     try:
         with open(counter_file, "w", encoding="utf-8") as f:
-            f.write(str(count + 1))
+            json.dump({"count": count + 1, "last_hash": msg_hash}, f)
     except OSError:
         pass
 
