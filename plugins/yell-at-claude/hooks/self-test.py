@@ -11,6 +11,9 @@ live Haiku judge via `claude -p`), exactly as a Stop event would:
 
 Both passing means the full pipeline works end-to-end. Uses throwaway
 session IDs so it never touches a real session's pushback budget.
+
+The judge is a live LLM and the hook fails open on timeouts, so a single
+run can flake. Each failing case is retried once before counting as FAIL.
 """
 
 import json
@@ -82,7 +85,13 @@ def run_case(case, idx):
 
 def main():
     print("yell-at-claude self-test (calls live Haiku judge twice, ~30s)\n")
-    results = [run_case(case, i) for i, case in enumerate(CASES)]
+    results = []
+    for i, case in enumerate(CASES):
+        ok = run_case(case, i)
+        if not ok:
+            print("       retrying once (live judge can flake)...")
+            ok = run_case(case, i)
+        results.append(ok)
     print()
     if all(results):
         print("All checks passed — the hook is wired and the judge is reachable.")
