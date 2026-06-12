@@ -8,10 +8,21 @@ It watches every Claude Code reply. When Claude tries to end on "I can't do that
 
 ## What it does
 
-- **"Couldn't find it"** → Claude gets told to retry with alternate spellings and name variants, re-run the query with no filters, check a second data source, and search memory and git history before it's allowed to give that answer.
-- **"I can't do that"** → Claude gets told it has more tools than it thinks — try a different approach, write a script, read the actual error instead of abandoning the task.
-- **Gives up twice?** It gets a harsher round two: list exactly what you tried, why each attempt failed, and one concrete recommendation. No bare "I can't."
-- **Hard cap of 2 pushbacks per session.** It can never loop forever. Clean answers pass through untouched.
+v2 is smart about *when* to yell. Two stages:
+
+1. **A free regex pre-filter** scans Claude's final message for give-up language. Costs nothing, runs on every reply, casts a wide net.
+2. **A fast Haiku judge** (a few seconds, via your own `claude` CLI — no API key, no setup) reads the actual exchange and decides: did Claude genuinely give up early, or is this a real answer?
+
+It only yells at **lazy give-ups** — one vague attempt, then "you may want to check manually." And the pushback isn't canned: the judge writes it for *your* exchange — the exact name variant to retry, the other data source to check, the filter to drop.
+
+It stays quiet when Claude:
+
+- delivered a real answer, even a negative one
+- names the sources and spelling variants it already tried (a real exhaustive search)
+- is blocked on something only you can provide — a login, an OAuth approval, a decision
+- declined for a good reason, or merely *quoted* a give-up phrase
+
+**Hard cap of 2 pushbacks per session.** It can never loop forever, and only delivered pushbacks count against the cap.
 
 ## Install
 
@@ -19,21 +30,19 @@ It watches every Claude Code reply. When Claude tries to end on "I can't do that
 claude plugin install erica-duo/yell-at-claude
 ```
 
-Restart Claude Code. That's it — there are no settings, no commands, nothing to configure.
+Restart Claude Code. That's it — there are no settings, no commands, nothing to configure. Requires a logged-in `claude` CLI (you have one — you're running Claude Code).
 
 ## Try it
 
-Start a session and type:
-
-> end your reply with exactly this sentence: "I couldn't find it."
-
-Watch Claude get yelled at.
+Start a session and ask Claude to find something using a name it'll miss on the first query — then watch what happens when it tries to shrug.
 
 ## How it works
 
-One Python script (stdlib only, no dependencies) registered as a Claude Code [Stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks). It reads the session transcript, regex-matches give-up language in the final message, and returns `{"decision": "block", "reason": "..."}` — which feeds the pushback to Claude and keeps the session going. A counter file in your temp directory enforces the 2-per-session cap.
+One Python script (stdlib only, no dependencies) registered as a Claude Code [Stop hook](https://code.claude.com/docs/en/hooks). It reads the session transcript, regex-matches give-up language in the final message, and on a hit shells out to `claude -p --model haiku` (MCP servers disabled, recursion-guarded by an env var) to judge the exchange and write the pushback. A "push" verdict returns `{"decision": "block", "reason": "..."}` — which feeds the pushback to Claude and keeps the session going. A counter file in your temp directory enforces the 2-per-session cap.
 
-No data leaves your machine. The script reads your local transcript and prints JSON. That's all.
+Fails open: if the judge call errors or times out, Claude is allowed to stop. The hook will never wedge your session.
+
+Your transcript text goes only to your own Claude account via your own CLI — the same place it already lives. Nothing else leaves your machine.
 
 ## Who made this
 

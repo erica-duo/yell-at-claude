@@ -5,7 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pushback.py\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pushback.py\"",
+            "timeout": 90
           }
         ]
       }
