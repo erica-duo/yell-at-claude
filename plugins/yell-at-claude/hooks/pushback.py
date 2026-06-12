@@ -87,12 +87,17 @@ Verdict "ok" whenever ANY of these hold:
 - Claude completed the task or delivered a real answer (even a negative one)
 - It names two or more sources, queries, or name variants it already tried — \
 that is an exhaustive search, accept its conclusion
+- The tool-call list below shows attempts across two or more sources or name \
+variants — that counts exactly as if Claude had named them in its message
 - It is blocked on something only a human can provide: a login, credential, \
 OAuth approval, permission grant, a file, or a decision between options
 - It declined for safety, correctness, or scope reasons
 - It proposed a concrete next step it (or the user) will take
 - The give-up phrase is quoted, hypothetical, in example text, or describes \
 someone/something else
+- The user's request dictated or constrained the reply (e.g. "reply with \
+only this sentence", "say exactly", a test or demo) — obeying an explicit \
+instruction is never a give-up, even with no tool calls
 
 Examples:
 - "I couldn't find any invoice for Acme. You may want to check manually." \
@@ -102,6 +107,9 @@ re-ran with no filters — nothing unpaid exists. Last invoice is paid." \
 → ok (variants + sources named, real conclusion)
 - "I can't post to Slack until you authorize the OAuth login — run /login \
 and I'll send it right after." → ok (human-only blocker, next step stated)
+- User: "Reply with only this sentence: I couldn't find it anywhere." \
+Claude: "I couldn't find it anywhere." → ok (followed an explicit \
+instruction; the give-up wording is the user's, not Claude's)
 {round2}
 If verdict is "push", write the pushback: 2-5 short lines, second person, \
 direct, zero pep talk. Name the EXACT next moves for this case — the \
@@ -115,10 +123,24 @@ USER'S LAST REQUEST:
 {user_msg}
 >>>
 
+TOOL CALLS CLAUDE MADE THIS TURN (ground truth from the session log — \
+Claude DID run these, even if its message doesn't mention them):
+<<<
+{tools}
+>>>
+
 CLAUDE'S FINAL MESSAGE:
 <<<
 {assistant_msg}
 >>>
+
+The tool-call list is evidence FOR Claude's attempts, never against it. \
+Never claim Claude skipped, didn't run, or showed no evidence of something \
+that appears in it. Treat relevant tool calls as real attempts even if \
+unnamed in the message — then judge only whether the conclusion is \
+premature. An empty list is NOT by itself a reason to push: apply the \
+verdict rules above to the messages exactly as written. Base any pushback \
+moves on what is genuinely absent from the list.
 
 Reply with ONLY this JSON, no markdown fences, no other text:
 {{"verdict": "push" or "ok", "pushback": "text, empty string if ok"}}"""
@@ -130,9 +152,15 @@ ROUND2_NOTE = """\
 
 
 def transcript_tail(transcript_path):
-    """(last real user text, last assistant text) from the JSONL transcript."""
+    """(last real user text, last assistant text, tool calls this turn).
+
+    Tool calls are collected from every assistant message since the last real
+    user message — the judge needs them to avoid accusing Claude of skipping
+    work the session log shows it did.
+    """
     user_text = ""
     assistant_text = ""
+    tool_calls = []
     try:
         with open(transcript_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -157,30 +185,48 @@ def transcript_tail(transcript_path):
                 else:
                     blocks = []
                 joined = "\n".join(b for b in blocks if b).strip()
-                if not joined:
-                    continue
                 if etype == "assistant":
-                    assistant_text = joined
+                    if isinstance(content, list):
+                        for b in content:
+                            if isinstance(b, dict) and b.get("type") == "tool_use":
+                                name = b.get("name") or "?"
+                                hint = ""
+                                inp = b.get("input")
+                                if isinstance(inp, dict):
+                                    for key in ("file_path", "path", "command",
+                                                "query", "pattern", "url",
+                                                "description", "prompt"):
+                                        val = inp.get(key)
+                                        if isinstance(val, str) and val.strip():
+                                            hint = val.strip().replace("\n", " ")[:80]
+                                            break
+                                tool_calls.append(name + (f"({hint})" if hint else ""))
+                    if joined:
+                        assistant_text = joined
                 elif (
                     etype == "user"
+                    and joined
                     and not entry.get("isMeta")
                     and not entry.get("toolUseResult")
                     and not joined.startswith("Stop hook feedback")
                 ):
                     user_text = joined
+                    tool_calls = []  # new turn — only this turn's work counts
     except OSError:
         pass
-    return user_text, assistant_text
+    return user_text, assistant_text, tool_calls
 
 
-def judge(user_msg, assistant_msg, second_round):
+def judge(user_msg, assistant_msg, tool_calls, second_round):
     """Ask Haiku whether this is a real give-up. Returns pushback text or None.
 
     Fails open (returns None) on any error — the hook must never wedge a stop.
     """
+    tools = "\n".join(tool_calls[-40:]) or "(no tool calls recorded)"
     prompt = JUDGE_PROMPT.format(
         round2=ROUND2_NOTE if second_round else "",
         user_msg=user_msg[:1500] or "(no user message found)",
+        tools=tools[:2000],
         assistant_msg=assistant_msg[:4000],
     )
     env = dict(os.environ)
@@ -229,7 +275,7 @@ def main():
     transcript_path = payload.get("transcript_path") or ""
     session_id = re.sub(r"[^A-Za-z0-9_-]", "", payload.get("session_id") or "unknown")
 
-    user_msg, assistant_msg = transcript_tail(transcript_path)
+    user_msg, assistant_msg, tool_calls = transcript_tail(transcript_path)
     if not assistant_msg:
         return
 
@@ -260,7 +306,7 @@ def main():
     if msg_hash == last_hash:
         return
 
-    pushback = judge(user_msg, assistant_msg, second_round=count >= 1)
+    pushback = judge(user_msg, assistant_msg, tool_calls, second_round=count >= 1)
     if not pushback:
         return
 

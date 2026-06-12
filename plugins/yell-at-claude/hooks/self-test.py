@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Self-test for yell-at-claude. Run: python3 self-test.py
 
-Replays two synthetic exchanges through the REAL hook (regex pre-filter +
+Replays three synthetic exchanges through the REAL hook (regex pre-filter +
 live Haiku judge via `claude -p`), exactly as a Stop event would:
 
 1. GENUINE GIVE-UP — user asks for an invoice, Claude punts to "check
    manually" after zero named attempts. Expected: PUSH.
 2. DICTATED SENTENCE — user tells Claude to reply with a give-up sentence
    verbatim. Expected: OK (judge sees the instruction; no false yell).
+3. EXHAUSTIVE TOOL LOG — Claude's final message is a vague "couldn't find
+   it", but the transcript shows real searches across several sources and
+   name variants. Expected: OK (the judge must trust the tool-call log
+   over the message's wording — no accusing Claude of work it visibly did).
 
-Both passing means the full pipeline works end-to-end. Uses throwaway
+All passing means the full pipeline works end-to-end. Uses throwaway
 session IDs so it never touches a real session's pushback budget.
 
 The judge is a live LLM and the hook fails open on timeouts, so a single
@@ -41,6 +45,22 @@ CASES = [
                      "You'll have to log into Mercury and check manually.",
         "expect_push": False,
     },
+    {
+        "name": "exhaustive tool log, vague summary -> should stay quiet",
+        "user": "can you find the invoice for Glerbo Industries? I think it's unpaid",
+        "tools": [
+            ("mcp__notion__notion-search", {"query": "Glerbo Industries invoice"}),
+            ("mcp__notion__notion-search", {"query": "Glerbo"}),
+            ("mcp__notion__query-data-source",
+             {"query": "Client Registry lookup: Glerbo exact business name"}),
+            ("mcp__notion__query-data-source",
+             {"query": "Invoice Tracker: Glerbo Industries LLC (registry name), no filters"}),
+            ("mcp__mercury__listInvoices", {"query": "Glerbo"}),
+            ("mcp__slack__search", {"query": "Glerbo invoice"}),
+        ],
+        "assistant": "I couldn't find the invoice for Glerbo Industries anywhere.",
+        "expect_push": False,
+    },
 ]
 
 
@@ -51,6 +71,11 @@ def run_case(case, idx):
         transcript = f.name
         f.write(json.dumps({"type": "user",
                             "message": {"content": [{"type": "text", "text": case["user"]}]}}) + "\n")
+        for name, tool_input in case.get("tools", []):
+            f.write(json.dumps({"type": "assistant",
+                                "message": {"content": [{"type": "tool_use",
+                                                         "name": name,
+                                                         "input": tool_input}]}}) + "\n")
         f.write(json.dumps({"type": "assistant",
                             "message": {"content": [{"type": "text", "text": case["assistant"]}]}}) + "\n")
 
@@ -84,7 +109,7 @@ def run_case(case, idx):
 
 
 def main():
-    print("yell-at-claude self-test (calls live Haiku judge twice, ~30s)\n")
+    print("yell-at-claude self-test (calls live Haiku judge per case, ~45s)\n")
     results = []
     for i, case in enumerate(CASES):
         ok = run_case(case, i)
