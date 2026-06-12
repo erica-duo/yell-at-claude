@@ -34,7 +34,15 @@ Restart Claude Code. That's it — there are no settings, no commands, nothing t
 
 ## Try it
 
-Start a session and ask Claude to find something using a name it'll miss on the first query — then watch what happens when it tries to shrug.
+Run the self-test — it replays two synthetic exchanges through the real hook (regex pre-filter + live Haiku judge) and reports PASS/FAIL:
+
+```bash
+python3 ~/.claude/plugins/cache/yell-at-claude/yell-at-claude/*/hooks/self-test.py
+```
+
+A genuine give-up must trigger a pushback; a sentence the user dictated must not. Both passing means the full pipeline works.
+
+Don't bother baiting it by telling Claude "reply with: I couldn't find X, check manually" — the judge reads your request too, sees you dictated the sentence, and correctly stays quiet. To see it live, ask Claude to find something with a name it'll miss on the first query, and watch what happens when it tries to shrug.
 
 ## How it works
 

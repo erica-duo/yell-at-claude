@@ -1,6 +1,6 @@
 {
   "name": "yell-at-claude",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Smart pushback when Claude gives up. A fast Haiku judge (via your own claude CLI) reads the exchange and sends Claude back to work with specific next moves \u2014 no false yelling on legit answers.",
   "author": {
     "name": "Erica Schneider",
